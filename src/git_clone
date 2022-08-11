@@ -1,0 +1,25 @@
+#!/bin/bash
+# Clone repository and mark it as safe.
+
+set -e
+
+if [ -z "${1}" ];
+  then
+    >&2 echo "Pass the URL as the first argument."
+    exit 1
+fi
+if [ -z "${2}" ];
+  then
+    >&2 echo "Pass the target path as the second argument."
+    exit 1
+fi
+
+url=${1}
+path=${2}
+
+git clone "${url}" "${path}"
+cd "${path}"
+path=$(pwd)
+git config --global --add safe.directory "${path}"
+
+echo "Directory '${path}' marked as safe."

@@ -1,0 +1,35 @@
+#!/bin/bash
+
+DIR_IN=$1
+PATTERN=${2:-".*\.(jpeg|jpg)$"}
+
+if [[ -z ${DIR_IN} ]]; then
+    echo "[ERROR] Directory path must be passed" 1>&2
+    exit 1
+fi
+
+degree_to_dec () {
+  a="${1//[,]/}"
+  b="${2//[,]/}"
+  c="${3//[,]/.}"
+
+  if [[ $a ]]; then
+     lat=$(echo "print ${a} + ${b}/60 + ${c}/60/60" | perl)
+  else
+    lat=0
+  fi
+
+  echo "${lat}"
+}
+
+OUTPUT_FILE="${DIR_IN}/gps_$(date +'%Y%m%d_%H%M%S').csv"
+
+echo "file,latitude,longitude" >> ${OUTPUT_FILE}
+
+for FILE in $(find "${DIR_IN}" -regextype posix-egrep -regex "${PATTERN}")
+do
+  META=$(exif --ifd=GPS "${FILE}" -x)
+  LATITUDE=$(degree_to_dec $(echo "${META}" | xpath -e 'string(//exif/Latitude)' -q))
+  LONGITUDE=$(degree_to_dec $(echo "${META}" | xpath -e 'string(//exif/Longitude)' -q))
+  echo "$(basename ${FILE}),${LATITUDE},${LONGITUDE}" >> ${OUTPUT_FILE}
+done

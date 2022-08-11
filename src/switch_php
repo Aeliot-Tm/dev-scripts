@@ -1,0 +1,56 @@
+#!/bin/bash
+# Switch version of PHP in the system.
+
+if [ -z "${1}" ];
+  then
+    echo "Pass the desired version as the first argument."
+    exit 1
+fi
+
+newVersion=${1}
+
+if [[ ! "${newVersion}" =~ ^[1-9]\.[0-9]$ ]];
+  then
+    echo "Requested version ${newVersion} does not match version pattern: /^[1-9]\.[0-9]$/"
+    exit 1;
+fi
+
+if [ -z "$(ls -la /etc/apache2/mods-available/ | grep -oe "php${newVersion}\.conf" | head -n 1)" ];
+  then
+    echo "Requested version ${newVersion} is unavailable for apache2"
+    exit 1
+fi
+
+if [ -z "${2}" ];
+  then
+    # Detect enabled version of php for Apache2
+    detectedConf=$(ls -la /etc/apache2/mods-enabled/ | grep -oe "php[0-9]\.[0-9]\.conf" | head -n 1)
+    oldVersion=${detectedConf:3:3}
+  else
+    oldVersion=${2}
+fi
+
+if [[ ! "${oldVersion}" =~ ^[1-9]\.[0-9]$ ]];
+  then
+    echo "Old version ${oldVersion} does not match version pattern: /^[1-9]\.[0-9]$/"
+    exit 1;
+fi
+
+# Switch php for console
+update-alternatives --set php "/usr/bin/php${newVersion}"
+update-alternatives --set phar "/usr/bin/phar${newVersion}"
+update-alternatives --set phar.phar "/usr/bin/phar.phar${newVersion}"
+
+# Switch php for Apache2
+if [ ${oldVersion} != ${newVersion} ];
+  then
+    if [ ! -z "$(ls -la /etc/apache2/mods-enabled/ | grep -oe "php${oldVersion}\.conf" | head -n 1)" ];
+      then
+        a2dismod "php${oldVersion}"
+      else
+        echo "Old version ${oldVersion} is unavailable for apache2"
+    fi
+    a2enmod "php${newVersion}"
+    systemctl restart apache2
+    echo "apache2 is restarted"
+fi
